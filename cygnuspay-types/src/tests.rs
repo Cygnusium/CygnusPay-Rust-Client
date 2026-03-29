@@ -1,17 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use crate::payment::{Deposit, PaymentRequest, PaymentResponse};
     use chrono::Utc;
-    use crate::payment::{
-        PaymentRequest,
-        PaymentResponse,
-        Deposit
-    };
-    use sha2::{
-        Sha256,
-        Digest
-    };
     use hex;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
 
     #[test]
     fn test_payment_request_full_serialisation() {
@@ -120,7 +113,6 @@ mod tests {
         assert_eq!(10.5, resp.amount);
         assert_eq!(timestamp, resp.timestamp);
         assert_eq!(hex_result, resp.tx_hash);
-
     }
 
     #[test]
@@ -176,7 +168,5 @@ mod tests {
         resp = serde_json::from_value::<PaymentResponse>(json_response).unwrap();
         assert!(!resp.deposits.is_none());
         assert_eq!(1, resp.deposits.unwrap().len());
-
     }
-
 }

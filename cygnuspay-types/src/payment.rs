@@ -1,7 +1,7 @@
 // Core payment structs
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Debug)]
 pub struct PaymentRequest {
@@ -17,9 +17,7 @@ pub struct PaymentRequest {
 }
 
 impl PaymentRequest {
-    pub fn new(
-        amount: f64,
-    ) -> PaymentRequest {
+    pub fn new(amount: f64) -> PaymentRequest {
         PaymentRequest {
             amount,
             currency: None,
@@ -28,19 +26,19 @@ impl PaymentRequest {
             title: None,
         }
     }
-    
+
     pub fn set_currency(&mut self, currency: Option<String>) {
         self.currency = currency
     }
-    
+
     pub fn set_description(&mut self, description: Option<String>) {
         self.description = description
     }
-    
+
     pub fn set_metadata(&mut self, metadata: Option<serde_json::Value>) {
         self.metadata = metadata
     }
-    
+
     pub fn set_title(&mut self, title: Option<String>) {
         self.title = title
     }
@@ -69,8 +67,9 @@ pub struct PaymentResponse {
     pub success: bool,
 }
 
-fn deserialize_to_datetime<'de, D: serde::Deserializer<'de>>(d: D) -> Result<DateTime<Utc>, D::Error> {
+fn deserialize_to_datetime<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<DateTime<Utc>, D::Error> {
     let s: String = serde::Deserialize::deserialize(d)?;
     s.parse::<DateTime<Utc>>().map_err(serde::de::Error::custom)
 }
-
