@@ -1,2 +1,3 @@
 [workspace]
 members = ["cygnuspay-client", "cygnuspay-types"]
+resolver = "3"
