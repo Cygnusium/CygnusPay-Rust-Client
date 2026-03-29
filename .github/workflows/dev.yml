@@ -1,0 +1,57 @@
+name: Run tests, coverage and check
+on:
+  push:
+    branches:
+      - "**"
+    branches-ignore:
+      - "main"
+
+jobs:
+  run-test-coverage:
+    name: "Run tests and coverage"
+    runs-on:
+      ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        run: rustup toolchain install nightly --component llvm-tools-preview
+
+      - name: Install cargo-llvm-preview
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Run tests and generate coverage report
+        run: cargo llvm-cov --html --output-dir coverage/
+
+      - name: Zip coverage report
+        run: zip coverage-report-${{ github.sha }}.zip coverage/*
+
+      - name: Upload report to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: coverage-report-${{ github.sha }}.zip
+          retention-days: 30
+
+
+  check:
+    name: "Check project"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo formatter
+        run: cargo fmt --all -- --check
+
+      - name: Run cargo check
+        run: cargo check
+
+
+
+
