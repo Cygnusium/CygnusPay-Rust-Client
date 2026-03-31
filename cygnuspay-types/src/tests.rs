@@ -1,17 +1,19 @@
 #[cfg(test)]
 mod tests {
-    use crate::payment::{Deposit, PaymentRequest, PaymentResponse};
-    use chrono::Utc;
+    use crate::payment::{Deposit, ExpiryUnit, PaymentRequest, PaymentStatusResponse, Status};
+    use chrono::{DateTime, Utc};
     use hex;
-    use serde_json::json;
+    use serde_json::{Map, json};
     use sha2::{Digest, Sha256};
 
     #[test]
     fn test_payment_request_full_serialisation() {
         let request = PaymentRequest {
             amount: 10.5,
-            currency: Some("USDT".into()),
+            currency: "USDT".into(),
             description: Some("Hello description".into()),
+            expiry_unit: Some(ExpiryUnit::DAYS),
+            expiry_value: Some(10),
             metadata: Some(json!({
                 "yippee!": "yahoo!"
             })),
@@ -23,59 +25,66 @@ mod tests {
         assert_eq!(value["amount"], 10.5);
         assert_eq!(value["currency"], "USDT");
         assert_eq!(value["description"], "Hello description");
-        assert_eq!(value["title"], "Title");
+        assert_eq!(value["expiry_value"], 10);
+        assert_eq!(value["expiry_unit"], "days");
         assert_eq!(value["metadata"]["yippee!"], "yahoo!");
+        assert_eq!(value["title"], "Title");
     }
 
     #[test]
     fn test_payment_request_optional_fields_omitted() {
         let request = PaymentRequest {
             amount: 10.5,
-            currency: None,
+            currency: "USDT".into(),
             description: None,
+            expiry_unit: None,
+            expiry_value: None,
             metadata: None,
             title: None,
         };
 
         let value = serde_json::to_value(&request).unwrap();
 
-        // amount should exist
+        // amount and currency should exist
         assert_eq!(value["amount"], 10.5);
-
-        assert!(value.get("currency").is_none());
+        assert_eq!(value["currency"], "USDT");
         assert!(value.get("description").is_none());
+        assert!(value.get("expiry_unit").is_none());
+        assert!(value.get("expiry_value").is_none());
         assert!(value.get("metadata").is_none());
         assert!(value.get("title").is_none());
     }
 
     #[test]
     fn test_payment_request_constructor_defaults() {
-        let request = PaymentRequest::new(10.5);
+        let request = PaymentRequest::new(10.5, "USDT".into());
 
         let value = serde_json::to_value(&request).unwrap();
 
         // amount should exist
         assert_eq!(value["amount"], 10.5);
-
-        assert!(value.get("currency").is_none());
+        assert_eq!(value["currency"], "USDT");
         assert!(value.get("description").is_none());
+        assert!(value.get("expiry_unit").is_none());
+        assert!(value.get("expiry_value").is_none());
         assert!(value.get("metadata").is_none());
         assert!(value.get("title").is_none());
     }
 
     #[test]
     fn test_payment_request_setters_update_fields() {
-        let mut request = PaymentRequest::new(10.5);
+        let mut request = PaymentRequest::new(10.5, "USDT".into());
 
-        request.set_currency(Some("USDT".into()));
         request.set_description(Some("Hello description".into()));
         request.set_metadata(Some(json!({"yippee!": "yahoo!"})));
         request.set_title(Some("Title".into()));
+        request.set_expiry_unit(Some(ExpiryUnit::MINUTES));
 
         let mut value = serde_json::to_value(&request).unwrap();
         assert_eq!(value["amount"], 10.5);
         assert_eq!(value["currency"], "USDT");
         assert_eq!(value["description"], "Hello description");
+        assert_eq!(value["expiry_unit"], "minutes");
         assert_eq!(value["metadata"]["yippee!"], "yahoo!");
         assert_eq!(value["title"], "Title");
 
@@ -118,27 +127,31 @@ mod tests {
     #[test]
     fn test_payment_response_deserialisation() {
         let mut json_response = json!({});
-        assert!(serde_json::from_value::<PaymentResponse>(json_response.clone()).is_err());
+        // passes because all fields are optional
+        assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
 
         json_response = json!({
             "success": true,
             "invalid_field": "invalid!!!"
         });
-        assert!(serde_json::from_value::<PaymentResponse>(json_response.clone()).is_ok());
+        assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
 
-        let mut resp: PaymentResponse = serde_json::from_value(json_response).unwrap();
-        assert_eq!(resp.success, true);
+        let mut resp: PaymentStatusResponse = serde_json::from_value(json_response).unwrap();
+        assert_eq!(resp.base.success, Some(true));
 
-        // 'message' key should be mapped to error_message field on struct
-        // 'is_confirmed' key should be mapped to confirmed field on struct
+        // 'error' key should be mapped to error_msg field on struct
+        // 'type' key should be mapped to confirmed field on struct
         json_response = json!({
             "success": false,
-            "message": "Test error message",
-            "is_confirmed": true,
+            "error": "Test error message",
+            "type": "onetime"
         });
-        resp = serde_json::from_value::<PaymentResponse>(json_response).unwrap();
-        assert_eq!(resp.error_message, Some(String::from("Test error message")));
-        assert_eq!(resp.confirmed, Some(true));
+        resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
+        assert_eq!(
+            resp.base.error_msg,
+            Some(String::from("Test error message"))
+        );
+        assert_eq!(resp.payment_type, Some(String::from("onetime")));
         assert!(resp.deposits.is_none());
 
         json_response = json!(
@@ -147,7 +160,7 @@ mod tests {
                 "deposits": []
             }
         );
-        resp = serde_json::from_value::<PaymentResponse>(json_response).unwrap();
+        resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
         assert!(!resp.deposits.is_none());
         assert!(resp.deposits.unwrap().is_empty());
 
@@ -165,8 +178,67 @@ mod tests {
                 }
             ]
         });
-        resp = serde_json::from_value::<PaymentResponse>(json_response).unwrap();
+        resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
         assert!(!resp.deposits.is_none());
         assert_eq!(1, resp.deposits.unwrap().len());
+
+        // full response
+        json_response = json!({
+            "success": true,
+            "confirmed_amount": 10000.52,
+            "currency": "USDT",
+            "deposits": [
+                {
+                    "amount": 10.5,
+                    "timestamp": "2026-08-14T11:42:09Z",
+                    "tx_hash": "1c322b6441369d75b75f85e5095d985a499313d4b6d41a87e5b61c5614147eaa"
+                },
+                {
+                    "amount": 6,
+                    "timestamp": "2026-02-28T03:15:30Z",
+                    "tx_hash": "9e6c4e1a72d3f9b2c3d4a6f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7"
+                },
+                {
+                    "amount": 1234212.43123,
+                    "timestamp": "2026-11-05T20:55:17Z",
+                    "tx_hash": "f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9"
+                }
+            ],
+            "expires_at": "2026-09-01T22:45:10Z",
+            "id": "cns_payment_38asd942dad22ndaw832nd8211",
+            "is_expired": true,
+            "is_confirmed": true,
+            "metadata": {},
+            "payment_type": "onetime",
+            "status": "inactive",
+        });
+
+        assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
+        resp = serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).unwrap();
+
+        assert_eq!(resp.base.success, Some(true));
+        assert_eq!(resp.currency, Some("USDT".into()));
+
+        assert!(resp.deposits.is_some());
+        let deposits: Vec<Deposit> = resp.deposits.unwrap();
+
+        assert_eq!(deposits.len(), 3);
+        // Check 1 deposit
+        let deposit: &Deposit = &deposits[1];
+        assert_eq!(deposit.amount, 6.0);
+        assert_eq!(
+            deposit.timestamp,
+            "2026-02-28T03:15:30Z".parse::<DateTime<Utc>>().unwrap()
+        );
+        assert_eq!(
+            deposit.tx_hash,
+            String::from("9e6c4e1a72d3f9b2c3d4a6f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7")
+        );
+
+        assert!(resp.metadata.is_some());
+        let binding = resp.metadata.unwrap();
+        let map: &Map<String, serde_json::Value> = binding.as_object().unwrap();
+        assert_eq!(map.keys().len(), 0);
+        assert!(matches!(resp.status.unwrap(), Status::INACTIVE));
     }
 }
