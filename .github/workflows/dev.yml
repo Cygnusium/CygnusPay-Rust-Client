@@ -38,6 +38,7 @@ jobs:
   check:
     name: "Check project"
     runs-on: ubuntu-latest
+    needs: run-test-coverage
 
     steps:
       - uses: actions/checkout@v5
