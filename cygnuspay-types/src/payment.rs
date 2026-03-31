@@ -1,8 +1,8 @@
 // Core payment structs
 
+use crate::base::BaseResponse;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::base::BaseResponse;
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -51,11 +51,11 @@ impl PaymentRequest {
     pub fn set_description(&mut self, description: Option<String>) {
         self.description = description
     }
-    
+
     pub fn set_expiry_value(&mut self, expiry_value: Option<u64>) {
         self.expiry_value = expiry_value;
     }
-    
+
     pub fn set_expiry_unit(&mut self, expiry_unit: Option<ExpiryUnit>) {
         self.expiry_unit = expiry_unit;
     }

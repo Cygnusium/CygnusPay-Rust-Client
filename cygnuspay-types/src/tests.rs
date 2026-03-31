@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::payment::{Deposit, PaymentRequest, PaymentStatusResponse, ExpiryUnit, Status};
+    use crate::payment::{Deposit, ExpiryUnit, PaymentRequest, PaymentStatusResponse, Status};
     use chrono::{DateTime, Utc};
     use hex;
-    use serde_json::{json, Map};
+    use serde_json::{Map, json};
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -147,7 +147,10 @@ mod tests {
             "type": "onetime"
         });
         resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
-        assert_eq!(resp.base.error_msg, Some(String::from("Test error message")));
+        assert_eq!(
+            resp.base.error_msg,
+            Some(String::from("Test error message"))
+        );
         assert_eq!(resp.payment_type, Some(String::from("onetime")));
         assert!(resp.deposits.is_none());
 
@@ -223,14 +226,19 @@ mod tests {
         // Check 1 deposit
         let deposit: &Deposit = &deposits[1];
         assert_eq!(deposit.amount, 6.0);
-        assert_eq!(deposit.timestamp, "2026-02-28T03:15:30Z".parse::<DateTime<Utc>>().unwrap());
-        assert_eq!(deposit.tx_hash, String::from("9e6c4e1a72d3f9b2c3d4a6f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7"));
+        assert_eq!(
+            deposit.timestamp,
+            "2026-02-28T03:15:30Z".parse::<DateTime<Utc>>().unwrap()
+        );
+        assert_eq!(
+            deposit.tx_hash,
+            String::from("9e6c4e1a72d3f9b2c3d4a6f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7")
+        );
 
         assert!(resp.metadata.is_some());
         let binding = resp.metadata.unwrap();
         let map: &Map<String, serde_json::Value> = binding.as_object().unwrap();
         assert_eq!(map.keys().len(), 0);
         assert!(matches!(resp.status.unwrap(), Status::INACTIVE));
-
     }
 }
