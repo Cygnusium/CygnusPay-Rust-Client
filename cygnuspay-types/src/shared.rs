@@ -1,5 +1,16 @@
 use serde::Deserialize;
 
+// Enums
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum Status {
+    ACTIVE,
+    INACTIVE,
+}
+
+// Structs
+
 // base response received from CygnusAPI, which is flattened to
 // other structs
 #[derive(Deserialize, Debug)]

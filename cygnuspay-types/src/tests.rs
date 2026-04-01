@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::payment::{Deposit, ExpiryUnit, PaymentRequest, PaymentStatusResponse, Status};
+    use crate::payment_list::{PaymentListItem, PaymentListResponse};
+    use crate::payment_request::{ExpiryUnit, PaymentRequest};
+    use crate::payment_status::{Deposit, PaymentStatusResponse};
+    use crate::shared::Status;
     use chrono::{DateTime, Utc};
     use hex;
     use serde_json::{Map, json};
@@ -146,7 +149,7 @@ mod tests {
             "error": "Test error message",
             "type": "onetime"
         });
-        resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
+        resp = serde_json::from_value(json_response).unwrap();
         assert_eq!(
             resp.base.error_msg,
             Some(String::from("Test error message"))
@@ -160,7 +163,7 @@ mod tests {
                 "deposits": []
             }
         );
-        resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
+        resp = serde_json::from_value(json_response).unwrap();
         assert!(!resp.deposits.is_none());
         assert!(resp.deposits.unwrap().is_empty());
 
@@ -178,7 +181,7 @@ mod tests {
                 }
             ]
         });
-        resp = serde_json::from_value::<PaymentStatusResponse>(json_response).unwrap();
+        resp = serde_json::from_value(json_response).unwrap();
         assert!(!resp.deposits.is_none());
         assert_eq!(1, resp.deposits.unwrap().len());
 
@@ -214,7 +217,7 @@ mod tests {
         });
 
         assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
-        resp = serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).unwrap();
+        resp = serde_json::from_value(json_response.clone()).unwrap();
 
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(resp.currency, Some("USDT".into()));
@@ -240,5 +243,117 @@ mod tests {
         let map: &Map<String, serde_json::Value> = binding.as_object().unwrap();
         assert_eq!(map.keys().len(), 0);
         assert!(matches!(resp.status.unwrap(), Status::INACTIVE));
+    }
+
+    #[test]
+    fn test_payment_list_item_deserialisation() {
+        let mut json_response = json!({});
+        assert!(serde_json::from_value::<PaymentListItem>(json_response.clone()).is_err());
+
+        json_response = json!({
+            "status": "inactive",
+            "is_expired": false,
+            "expires_at": "Invalid",
+            "created_at": "Timestamp"
+        });
+        assert!(serde_json::from_value::<PaymentListItem>(json_response.clone()).is_err());
+
+        // full response
+        json_response = json!(
+            {
+                "status": "active",
+                "title": "Test payment",
+                "currency": "USDT",
+                "id": "cns_payment_88381264341dawd212",
+                "is_expired": false,
+                "created_at": "2026-06-25T11:45:21Z",
+                "expires_at": "2026-10-18T03:09:55Z",
+                "type": "onetime",
+                "url": "https://example.com/payment",
+            }
+        );
+        assert!(serde_json::from_value::<PaymentListItem>(json_response.clone()).is_ok());
+        let resp: PaymentListItem = serde_json::from_value(json_response).unwrap();
+
+        assert!(matches!(resp.status, Status::ACTIVE));
+        assert_eq!(resp.title, "Test payment");
+        assert_eq!(resp.currency, String::from("USDT"));
+        assert_eq!(resp.id, String::from("cns_payment_88381264341dawd212"));
+        assert_eq!(
+            resp.created_at,
+            "2026-06-25T11:45:21Z".parse::<DateTime<Utc>>().unwrap()
+        );
+        assert_eq!(
+            resp.expires_at,
+            "2026-10-18T03:09:55Z".parse::<DateTime<Utc>>().unwrap()
+        );
+        assert_eq!(resp.payment_type, String::from("onetime"));
+        assert_eq!(resp.url, String::from("https://example.com/payment"));
+    }
+
+    #[test]
+    fn test_payment_list_deserialisation() {
+        let mut json_response = json!({});
+        assert!(serde_json::from_value::<PaymentListResponse>(json_response.clone()).is_ok());
+
+        json_response = json!({
+            "success": false,
+            "error": "Test error",
+            "payments": [],
+        });
+
+        assert!(serde_json::from_value::<PaymentListResponse>(json_response.clone()).is_ok());
+        let mut resp: PaymentListResponse = serde_json::from_value(json_response.clone()).unwrap();
+        assert_eq!(resp.base.error_msg, Some(String::from("Test error")));
+        assert!(resp.items.is_some());
+        assert_eq!(resp.items.unwrap().len(), 0);
+
+        // full response
+        json_response = json!({
+            "success": true,
+            "count": 3,
+            "payments": [
+                {
+                    "status": "active",
+                    "title": "Test payment 1",
+                    "currency": "USDT",
+                    "id": "cns_payment_4883812641dawd2123",
+                    "is_expired": false,
+                    "created_at": "2026-02-14T08:22:15Z",
+                    "expires_at": "2026-05-20T14:05:59Z",
+                    "type": "onetime",
+                    "url": "https://example.com/payment1",
+                },
+                {
+                    "status": "inactive",
+                    "title": "Test payment 2",
+                    "currency": "BTC",
+                    "id": "cns_payment_8wd2142388126431da",
+                    "is_expired": false,
+                    "created_at": "2026-07-01T23:12:01Z",
+                    "expires_at": "2026-08-30T03:45:10Z",
+                    "type": "onetime",
+                    "url": "https://example.com/payment2",
+                },
+                {
+                    "status": "active",
+                    "title": "Test payment 3",
+                    "currency": "CNS",
+                    "id": "cns_payment_8818d21312a26434wd",
+                    "is_expired": false,
+                    "created_at": "2026-10-15T19:00:23Z",
+                    "expires_at": "2026-12-25T11:30:00Z",
+                    "type": "onetime",
+                    "url": "https://example.com/payment3",
+                }
+            ],
+        });
+
+        resp = serde_json::from_value(json_response).unwrap();
+
+        assert_eq!(resp.base.success, Some(true));
+        assert_eq!(resp.count, Some(3));
+        assert!(resp.items.is_some());
+        assert_eq!(resp.items.unwrap().len(), 3);
     }
 }
