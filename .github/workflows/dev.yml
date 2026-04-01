@@ -24,14 +24,11 @@ jobs:
       - name: Run tests and generate coverage report
         run: cargo llvm-cov --html --output-dir coverage/
 
-      - name: Zip coverage report
-        run: zip coverage-report-${{ github.sha }}.zip coverage/*
-
       - name: Upload report to artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report-${{ github.sha }}
-          path: coverage-report-${{ github.sha }}.zip
+          path: coverage/
           retention-days: 30
 
 
