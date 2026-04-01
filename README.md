@@ -1,2 +1,2 @@
-# CygnusPay-Rust-Client
-A modern Rust implementation of the CygnusPay API
+# CygnusPay-Rust-SDK
+A modern Rust SDK designed to interact with the CygnusPay platform
