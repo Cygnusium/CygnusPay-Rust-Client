@@ -1,4 +1,4 @@
-// Core payment structs
+// endpoint: GET /v1/payments/<id>/status
 
 use crate::shared::{BaseResponse, Status};
 use chrono::{DateTime, Utc};

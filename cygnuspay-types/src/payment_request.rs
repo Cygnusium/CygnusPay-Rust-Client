@@ -1,4 +1,7 @@
-use serde::Serialize;
+// endpoint: POST /v1/payments
+
+use crate::shared::BaseResponse;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -56,4 +59,14 @@ impl PaymentRequest {
     pub fn set_title(&mut self, title: Option<String>) {
         self.title = title
     }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PaymentRequestResponse {
+    pub amount: Option<f64>,
+    #[serde(flatten)]
+    pub base: BaseResponse,
+    pub currency: Option<String>,
+    pub payment_id: Option<String>,
+    pub payment_url: Option<String>,
 }
