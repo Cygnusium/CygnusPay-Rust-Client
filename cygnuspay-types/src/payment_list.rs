@@ -1,3 +1,5 @@
+// endpoint: GET /v1/payments
+
 use crate::shared::{BaseResponse, Status};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;

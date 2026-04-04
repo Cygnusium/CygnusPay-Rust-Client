@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use crate::donation_request::DonationRequestResponse;
     use crate::payment_list::{PaymentListItem, PaymentListResponse};
-    use crate::payment_request::{ExpiryUnit, PaymentRequest};
+    use crate::payment_request::{ExpiryUnit, PaymentRequest, PaymentRequestResponse};
     use crate::payment_status::{Deposit, PaymentStatusResponse};
     use crate::shared::Status;
     use chrono::{DateTime, Utc};
@@ -128,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn test_payment_response_deserialisation() {
+    fn test_payment_status_deserialisation() {
         let mut json_response = json!({});
         // passes because all fields are optional
         assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
@@ -355,5 +356,87 @@ mod tests {
         assert_eq!(resp.count, Some(3));
         assert!(resp.items.is_some());
         assert_eq!(resp.items.unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_payment_request_response_deserialisation() {
+        let mut json_response = json!({});
+        assert!(serde_json::from_value::<PaymentRequestResponse>(json_response.clone()).is_ok());
+
+        json_response = json!(
+            {
+                "success": false,
+                "error": "Test error",
+            }
+        );
+
+        assert!(serde_json::from_value::<PaymentRequestResponse>(json_response.clone()).is_ok());
+        let mut resp: PaymentRequestResponse = serde_json::from_value(json_response).unwrap();
+        assert_eq!(resp.base.success, Some(false));
+        assert_eq!(resp.base.error_msg, Some(String::from("Test error")));
+
+        json_response = json!(
+            {
+                "success": true,
+                "payment_id": "cns_payment_8818d21312a26434wd",
+                "payment_url": "https://example.com/payment",
+                "amount": 10.5,
+                "currency": "USDT",
+            }
+        );
+
+        resp = serde_json::from_value(json_response).unwrap();
+        assert_eq!(resp.base.success, Some(true));
+        assert_eq!(
+            resp.payment_id,
+            Some(String::from("cns_payment_8818d21312a26434wd"))
+        );
+        assert_eq!(
+            resp.payment_url,
+            Some(String::from("https://example.com/payment"))
+        );
+        assert_eq!(resp.amount, Some(10.5));
+        assert_eq!(resp.currency, Some(String::from("USDT")));
+    }
+
+    #[test]
+    fn test_donation_request_response_deserialisation() {
+        let mut json_response = json!({});
+        assert!(serde_json::from_value::<DonationRequestResponse>(json_response.clone()).is_ok());
+
+        json_response = json!(
+            {
+                "success": false,
+                "error": "Test error",
+            }
+        );
+
+        assert!(serde_json::from_value::<DonationRequestResponse>(json_response.clone()).is_ok());
+        let mut resp: DonationRequestResponse = serde_json::from_value(json_response).unwrap();
+        assert_eq!(resp.base.success, Some(false));
+        assert_eq!(resp.base.error_msg, Some(String::from("Test error")));
+
+        json_response = json!(
+            {
+                "success": true,
+                "payment_id": "cns_payment_8818d21312a26434wd",
+                "payment_url": "https://example.com/payment",
+                "amount": 10.5,
+                "currency": "USDT",
+            }
+        );
+
+        resp = serde_json::from_value(json_response).unwrap();
+        assert_eq!(resp.base.success, Some(true));
+        assert_eq!(
+            resp.payment_id,
+            Some(String::from("cns_payment_8818d21312a26434wd"))
+        );
+        assert_eq!(
+            resp.payment_url,
+            Some(String::from("https://example.com/payment"))
+        );
+        assert_eq!(resp.amount, Some(10.5));
+        assert_eq!(resp.currency, Some(String::from("USDT")));
     }
 }
