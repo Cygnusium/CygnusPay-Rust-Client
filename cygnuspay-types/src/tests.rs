@@ -114,7 +114,7 @@ mod tests {
 
         // 'error' key should be flattened and mapped to error_msg field on struct
         // 'success' key should be flattened on struct
-        // 'type' key should be mapped to confirmed field on struct
+        // 'type' key should be mapped to payment_type field on struct
         json_response = json!({
             "success": false,
             "error": "Test error message",
@@ -260,7 +260,7 @@ mod tests {
             ],
         });
 
-       let resp: PaymentListResponse = serde_json::from_value(json_response).unwrap();
+        let resp: PaymentListResponse = serde_json::from_value(json_response).unwrap();
 
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(resp.count, Some(3));
