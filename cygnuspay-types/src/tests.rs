@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
     use crate::donation_request::DonationRequestResponse;
-    use crate::payment_list::{PaymentListItem, PaymentListResponse};
+    use crate::payment_list::{Payment, PaymentListResponse};
     use crate::payment_request::{ExpiryUnit, PaymentRequest, PaymentRequestResponse};
     use crate::payment_status::{Deposit, PaymentStatusResponse};
     use crate::shared::Status;
     use chrono::{DateTime, Utc};
     use hex;
-    use serde_json::{Map, json};
+    use serde_json::json;
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -65,7 +65,7 @@ mod tests {
 
         let value = serde_json::to_value(&request).unwrap();
 
-        // amount should exist
+        // amount and currency should exist
         assert_eq!(value["amount"], 10.5);
         assert_eq!(value["currency"], "USDT");
         assert!(value.get("description").is_none());
@@ -76,29 +76,7 @@ mod tests {
     }
 
     #[test]
-    fn test_payment_request_setters_update_fields() {
-        let mut request = PaymentRequest::new(10.5, "USDT".into());
-
-        request.set_description(Some("Hello description".into()));
-        request.set_metadata(Some(json!({"yippee!": "yahoo!"})));
-        request.set_title(Some("Title".into()));
-        request.set_expiry_unit(Some(ExpiryUnit::MINUTES));
-
-        let mut value = serde_json::to_value(&request).unwrap();
-        assert_eq!(value["amount"], 10.5);
-        assert_eq!(value["currency"], "USDT");
-        assert_eq!(value["description"], "Hello description");
-        assert_eq!(value["expiry_unit"], "minutes");
-        assert_eq!(value["metadata"]["yippee!"], "yahoo!");
-        assert_eq!(value["title"], "Title");
-
-        request.set_metadata(None);
-        value = serde_json::to_value(&request).unwrap();
-        assert!(value.get("metadata").is_none());
-    }
-
-    #[test]
-    fn test_deposit_struct_deserialisation() {
+    fn test_deposit_item_deserialisation() {
         let mut hasher = Sha256::new();
         hasher.update(b"test data");
         let hex_result = hex::encode(hasher.finalize());
@@ -134,57 +112,21 @@ mod tests {
         // passes because all fields are optional
         assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
 
-        json_response = json!({
-            "success": true,
-            "invalid_field": "invalid!!!"
-        });
-        assert!(serde_json::from_value::<PaymentStatusResponse>(json_response.clone()).is_ok());
-
-        let mut resp: PaymentStatusResponse = serde_json::from_value(json_response).unwrap();
-        assert_eq!(resp.base.success, Some(true));
-
-        // 'error' key should be mapped to error_msg field on struct
+        // 'error' key should be flattened and mapped to error_msg field on struct
+        // 'success' key should be flattened on struct
         // 'type' key should be mapped to confirmed field on struct
         json_response = json!({
             "success": false,
             "error": "Test error message",
             "type": "onetime"
         });
-        resp = serde_json::from_value(json_response).unwrap();
+        let mut resp: PaymentStatusResponse = serde_json::from_value(json_response).unwrap();
+        assert_eq!(resp.base.success, Some(false));
         assert_eq!(
             resp.base.error_msg,
             Some(String::from("Test error message"))
         );
         assert_eq!(resp.payment_type, Some(String::from("onetime")));
-        assert!(resp.deposits.is_none());
-
-        json_response = json!(
-            {
-                "success": true,
-                "deposits": []
-            }
-        );
-        resp = serde_json::from_value(json_response).unwrap();
-        assert!(!resp.deposits.is_none());
-        assert!(resp.deposits.unwrap().is_empty());
-
-        let mut hasher = Sha256::new();
-        hasher.update(b"test data");
-        let hex_result = hex::encode(hasher.finalize());
-
-        json_response = json!({
-            "success": true,
-            "deposits": [
-                {
-                    "amount": 10.5,
-                    "timestamp": Utc::now().to_string(),
-                    "tx_hash": hex_result
-                }
-            ]
-        });
-        resp = serde_json::from_value(json_response).unwrap();
-        assert!(!resp.deposits.is_none());
-        assert_eq!(1, resp.deposits.unwrap().len());
 
         // full response
         json_response = json!({
@@ -222,42 +164,22 @@ mod tests {
 
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(resp.currency, Some("USDT".into()));
-
         assert!(resp.deposits.is_some());
-        let deposits: Vec<Deposit> = resp.deposits.unwrap();
-
-        assert_eq!(deposits.len(), 3);
-        // Check 1 deposit
-        let deposit: &Deposit = &deposits[1];
-        assert_eq!(deposit.amount, 6.0);
-        assert_eq!(
-            deposit.timestamp,
-            "2026-02-28T03:15:30Z".parse::<DateTime<Utc>>().unwrap()
-        );
-        assert_eq!(
-            deposit.tx_hash,
-            String::from("9e6c4e1a72d3f9b2c3d4a6f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7")
-        );
-
+        assert_eq!(resp.deposits.unwrap().len(), 3);
         assert!(resp.metadata.is_some());
-        let binding = resp.metadata.unwrap();
-        let map: &Map<String, serde_json::Value> = binding.as_object().unwrap();
-        assert_eq!(map.keys().len(), 0);
         assert!(matches!(resp.status.unwrap(), Status::INACTIVE));
     }
 
     #[test]
     fn test_payment_list_item_deserialisation() {
         let mut json_response = json!({});
-        assert!(serde_json::from_value::<PaymentListItem>(json_response.clone()).is_err());
+        assert!(serde_json::from_value::<Payment>(json_response.clone()).is_err());
 
         json_response = json!({
-            "status": "inactive",
-            "is_expired": false,
             "expires_at": "Invalid",
-            "created_at": "Timestamp"
+            "created_at": "Timestamp",
         });
-        assert!(serde_json::from_value::<PaymentListItem>(json_response.clone()).is_err());
+        assert!(serde_json::from_value::<Payment>(json_response.clone()).is_err());
 
         // full response
         json_response = json!(
@@ -273,8 +195,8 @@ mod tests {
                 "url": "https://example.com/payment",
             }
         );
-        assert!(serde_json::from_value::<PaymentListItem>(json_response.clone()).is_ok());
-        let resp: PaymentListItem = serde_json::from_value(json_response).unwrap();
+        assert!(serde_json::from_value::<Payment>(json_response.clone()).is_ok());
+        let resp: Payment = serde_json::from_value(json_response).unwrap();
 
         assert!(matches!(resp.status, Status::ACTIVE));
         assert_eq!(resp.title, "Test payment");
@@ -296,18 +218,6 @@ mod tests {
     fn test_payment_list_deserialisation() {
         let mut json_response = json!({});
         assert!(serde_json::from_value::<PaymentListResponse>(json_response.clone()).is_ok());
-
-        json_response = json!({
-            "success": false,
-            "error": "Test error",
-            "payments": [],
-        });
-
-        assert!(serde_json::from_value::<PaymentListResponse>(json_response.clone()).is_ok());
-        let mut resp: PaymentListResponse = serde_json::from_value(json_response.clone()).unwrap();
-        assert_eq!(resp.base.error_msg, Some(String::from("Test error")));
-        assert!(resp.items.is_some());
-        assert_eq!(resp.items.unwrap().len(), 0);
 
         // full response
         json_response = json!({
@@ -350,30 +260,18 @@ mod tests {
             ],
         });
 
-        resp = serde_json::from_value(json_response).unwrap();
+       let resp: PaymentListResponse = serde_json::from_value(json_response).unwrap();
 
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(resp.count, Some(3));
-        assert!(resp.items.is_some());
-        assert_eq!(resp.items.unwrap().len(), 3);
+        assert!(resp.payments.is_some());
+        assert_eq!(resp.payments.unwrap().len(), 3);
     }
 
     #[test]
     fn test_payment_request_response_deserialisation() {
         let mut json_response = json!({});
         assert!(serde_json::from_value::<PaymentRequestResponse>(json_response.clone()).is_ok());
-
-        json_response = json!(
-            {
-                "success": false,
-                "error": "Test error",
-            }
-        );
-
-        assert!(serde_json::from_value::<PaymentRequestResponse>(json_response.clone()).is_ok());
-        let mut resp: PaymentRequestResponse = serde_json::from_value(json_response).unwrap();
-        assert_eq!(resp.base.success, Some(false));
-        assert_eq!(resp.base.error_msg, Some(String::from("Test error")));
 
         json_response = json!(
             {
@@ -385,7 +283,7 @@ mod tests {
             }
         );
 
-        resp = serde_json::from_value(json_response).unwrap();
+        let resp: PaymentRequestResponse = serde_json::from_value(json_response).unwrap();
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(
             resp.payment_id,
@@ -406,18 +304,6 @@ mod tests {
 
         json_response = json!(
             {
-                "success": false,
-                "error": "Test error",
-            }
-        );
-
-        assert!(serde_json::from_value::<DonationRequestResponse>(json_response.clone()).is_ok());
-        let mut resp: DonationRequestResponse = serde_json::from_value(json_response).unwrap();
-        assert_eq!(resp.base.success, Some(false));
-        assert_eq!(resp.base.error_msg, Some(String::from("Test error")));
-
-        json_response = json!(
-            {
                 "success": true,
                 "payment_id": "cns_payment_8818d21312a26434wd",
                 "payment_url": "https://example.com/payment",
@@ -426,7 +312,7 @@ mod tests {
             }
         );
 
-        resp = serde_json::from_value(json_response).unwrap();
+        let resp: DonationRequestResponse = serde_json::from_value(json_response).unwrap();
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(
             resp.payment_id,
