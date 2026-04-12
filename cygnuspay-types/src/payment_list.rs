@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-pub struct PaymentListItem {
+pub struct Payment {
     pub created_at: DateTime<Utc>,
     pub currency: String,
     pub expires_at: DateTime<Utc>,
@@ -23,6 +23,5 @@ pub struct PaymentListResponse {
     #[serde(flatten)]
     pub base: BaseResponse,
     pub count: Option<u64>,
-    #[serde(rename = "payments")]
-    pub items: Option<Vec<PaymentListItem>>,
+    pub payments: Option<Vec<Payment>>,
 }

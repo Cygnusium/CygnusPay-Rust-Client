@@ -12,6 +12,13 @@ pub enum ExpiryUnit {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentType {
+    ONETIME,
+    DONATION,
+}
+
+#[derive(Serialize, Debug)]
 pub struct PaymentRequest {
     pub amount: f64,
     pub currency: String,
@@ -23,6 +30,8 @@ pub struct PaymentRequest {
     pub expiry_value: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "type")]
+    pub payment_type: Option<PaymentType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 }
@@ -36,6 +45,7 @@ impl PaymentRequest {
             expiry_unit: None,
             expiry_value: None,
             metadata: None,
+            payment_type: None,
             title: None,
         }
     }
@@ -58,6 +68,10 @@ impl PaymentRequest {
 
     pub fn set_title(&mut self, title: Option<String>) {
         self.title = title
+    }
+
+    pub fn set_payment_type(&mut self, payment_type: Option<PaymentType>) {
+        self.payment_type = payment_type
     }
 }
 
