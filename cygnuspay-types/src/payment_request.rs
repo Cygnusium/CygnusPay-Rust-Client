@@ -50,12 +50,12 @@ impl PaymentRequest {
         }
     }
 
-    pub fn set_description(&mut self, description: Option<String>) {
-        self.description = description
+    pub fn set_description(&mut self, description: impl Into<String>) {
+        self.description = Some(description.into())
     }
 
-    pub fn set_expiry_value(&mut self, expiry_value: Option<u64>) {
-        self.expiry_value = expiry_value;
+    pub fn set_expiry_value(&mut self, expiry_value: impl Into<u64>) {
+        self.expiry_value = Some(expiry_value.into());
     }
 
     pub fn set_expiry_unit(&mut self, expiry_unit: Option<ExpiryUnit>) {
@@ -66,8 +66,8 @@ impl PaymentRequest {
         self.metadata = metadata
     }
 
-    pub fn set_title(&mut self, title: Option<String>) {
-        self.title = title
+    pub fn set_title(&mut self, title: impl Into<String>) {
+        self.title = Some(title.into())
     }
 
     pub fn set_payment_type(&mut self, payment_type: Option<PaymentType>) {
