@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::donation_request::DonationRequestResponse;
     use crate::payment_list::{Payment, PaymentListResponse};
-    use crate::payment_request::{ExpiryUnit, PaymentRequest, PaymentRequestResponse};
+    use crate::payment_request::{ExpiryUnit, PaymentRequest, PaymentRequestResponse, PaymentType};
     use crate::payment_status::{Deposit, PaymentStatusResponse};
     use crate::shared::Status;
     use chrono::{DateTime, Utc};
@@ -21,6 +20,7 @@ mod tests {
             metadata: Some(json!({
                 "yippee!": "yahoo!"
             })),
+            payment_type: Some(PaymentType::ONETIME),
             title: Some("Title".into()),
         };
 
@@ -33,6 +33,7 @@ mod tests {
         assert_eq!(value["expiry_unit"], "days");
         assert_eq!(value["metadata"]["yippee!"], "yahoo!");
         assert_eq!(value["title"], "Title");
+        assert_eq!(value["type"], "onetime");
     }
 
     #[test]
@@ -44,6 +45,7 @@ mod tests {
             expiry_unit: None,
             expiry_value: None,
             metadata: None,
+            payment_type: None,
             title: None,
         };
 
@@ -57,6 +59,7 @@ mod tests {
         assert!(value.get("expiry_value").is_none());
         assert!(value.get("metadata").is_none());
         assert!(value.get("title").is_none());
+        assert!(value.get("type").is_none());
     }
 
     #[test]
@@ -73,6 +76,7 @@ mod tests {
         assert!(value.get("expiry_value").is_none());
         assert!(value.get("metadata").is_none());
         assert!(value.get("title").is_none());
+        assert!(value.get("type").is_none());
     }
 
     #[test]
@@ -284,35 +288,6 @@ mod tests {
         );
 
         let resp: PaymentRequestResponse = serde_json::from_value(json_response).unwrap();
-        assert_eq!(resp.base.success, Some(true));
-        assert_eq!(
-            resp.payment_id,
-            Some(String::from("cns_payment_8818d21312a26434wd"))
-        );
-        assert_eq!(
-            resp.payment_url,
-            Some(String::from("https://example.com/payment"))
-        );
-        assert_eq!(resp.amount, Some(10.5));
-        assert_eq!(resp.currency, Some(String::from("USDT")));
-    }
-
-    #[test]
-    fn test_donation_request_response_deserialisation() {
-        let mut json_response = json!({});
-        assert!(serde_json::from_value::<DonationRequestResponse>(json_response.clone()).is_ok());
-
-        json_response = json!(
-            {
-                "success": true,
-                "payment_id": "cns_payment_8818d21312a26434wd",
-                "payment_url": "https://example.com/payment",
-                "amount": 10.5,
-                "currency": "USDT",
-            }
-        );
-
-        let resp: DonationRequestResponse = serde_json::from_value(json_response).unwrap();
         assert_eq!(resp.base.success, Some(true));
         assert_eq!(
             resp.payment_id,
