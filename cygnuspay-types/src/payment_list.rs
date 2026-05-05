@@ -1,4 +1,4 @@
-// endpoint: GET /v1/payments
+// endpoint: GET /v1/payments/<link_type>
 
 use crate::shared::{BaseResponse, Status};
 use chrono::{DateTime, Utc};
