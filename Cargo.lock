@@ -97,6 +97,15 @@ name = "cygnuspay-client"
 version = "0.1.0"
 
 [[package]]
+name = "cygnuspay-core"
+version = "0.1.0"
+dependencies = [
+ "cygnuspay-client",
+ "cygnuspay-types",
+ "serde_json",
+]
+
+[[package]]
 name = "cygnuspay-types"
 version = "0.1.0"
 dependencies = [

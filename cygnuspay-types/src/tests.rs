@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::payment_list::{Payment, PaymentListResponse};
+    use crate::payment_list::{PaymentItem, PaymentListResponse};
     use crate::payment_request::{ExpiryUnit, PaymentRequest, PaymentRequestResponse, PaymentType};
     use crate::payment_status::{Deposit, PaymentStatusResponse};
     use crate::shared::Status;
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_payment_request_constructor_defaults() {
-        let request = PaymentRequest::new(10.5, "USDT".into());
+        let request = PaymentRequest::new(10.5, "USDT");
 
         let value = serde_json::to_value(&request).unwrap();
 
@@ -177,13 +177,13 @@ mod tests {
     #[test]
     fn test_payment_list_item_deserialisation() {
         let mut json_response = json!({});
-        assert!(serde_json::from_value::<Payment>(json_response.clone()).is_err());
+        assert!(serde_json::from_value::<PaymentItem>(json_response.clone()).is_err());
 
         json_response = json!({
             "expires_at": "Invalid",
             "created_at": "Timestamp",
         });
-        assert!(serde_json::from_value::<Payment>(json_response.clone()).is_err());
+        assert!(serde_json::from_value::<PaymentItem>(json_response.clone()).is_err());
 
         // full response
         json_response = json!(
@@ -199,8 +199,8 @@ mod tests {
                 "url": "https://example.com/payment",
             }
         );
-        assert!(serde_json::from_value::<Payment>(json_response.clone()).is_ok());
-        let resp: Payment = serde_json::from_value(json_response).unwrap();
+        assert!(serde_json::from_value::<PaymentItem>(json_response.clone()).is_ok());
+        let resp: PaymentItem = serde_json::from_value(json_response).unwrap();
 
         assert!(matches!(resp.status, Status::ACTIVE));
         assert_eq!(resp.title, "Test payment");

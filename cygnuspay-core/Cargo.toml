@@ -1,0 +1,9 @@
+[package]
+name = "cygnuspay-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cygnuspay-types = { path = "../cygnuspay-types" }
+cygnuspay-client = { path = "../cygnuspay-client" }
+serde_json = "1.0.149"

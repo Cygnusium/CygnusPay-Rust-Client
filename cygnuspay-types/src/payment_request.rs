@@ -37,10 +37,10 @@ pub struct PaymentRequest {
 }
 
 impl PaymentRequest {
-    pub fn new(amount: f64, currency: String) -> PaymentRequest {
+    pub fn new(amount: impl Into<f64>, currency: impl Into<String>) -> Self {
         PaymentRequest {
-            amount,
-            currency,
+            amount: amount.into(),
+            currency: currency.into(),
             description: None,
             expiry_unit: None,
             expiry_value: None,
